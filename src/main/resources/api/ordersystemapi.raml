@@ -1,0 +1,72 @@
+#%RAML 1.0
+title: orderSystemapi
+
+/ordercreate:
+  post:
+    body:
+      application/json:
+        example:
+          {
+           "orderid":"1234",
+           "orderamount":2340,
+           "Noofitems":3
+          }
+    responses:
+      200:
+        body:
+          application/json:
+            example:
+              {
+                "sfdcorderid":"1234"
+              }
+      400:
+        body:
+          application/json:
+            example:
+              {
+                "errorstatuscode":400,
+                "errormessage":"bad request"
+              }        
+/orderquery:
+  get:
+    queryParameters:
+      sfdcorderid:
+       type: string
+       required: true
+    responses:
+      200:
+        body:
+          application/json:
+            example:
+              {
+           "orderid":"1234",
+           "orderamount":2340,
+           "Noofitems":3,
+           "sfdcorderid":"1234"
+              }
+      400:
+        body:
+          application/json:
+            example:
+              {
+                "errorstatuscode":400,
+                "errormessage":"bad request"
+              }
+/orderdelete/{sfdcorderid}:
+     delete: 
+      responses:
+        200:
+          body:
+            application/json:
+              example:
+                {
+                  "sfdcorderid":"order deleted successfully"
+                }
+        400:
+         body:
+          application/json:
+            example:
+              {
+                "errorstatuscode":400,
+                "errormessage":"bad request"
+              }

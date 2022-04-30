@@ -1,0 +1,389 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd 
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
+    <http:listener-config name="ordersystemapi-httpListenerConfig">
+        <http:listener-connection host="0.0.0.0" port="8081" />
+    </http:listener-config>
+    <apikit:config name="ordersystemapi-config" api="ordersystemapi.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+    <db:config name="Database_Config" doc:name="Database Config" doc:id="2c25ed25-25ca-44c3-af68-b77f46f03353" >
+		<db:my-sql-connection host="localhost" port="3306" user="root" password="Praveen@18" database="orders" />
+	</db:config>
+	<salesforce:sfdc-config name="Salesforce_Config" doc:name="Salesforce Config" doc:id="37370712-743c-4cbf-a7ef-d2d206f3a1ab" >
+		<salesforce:basic-connection username="praveenvissamsetty@gmail.com" password="Praveen@97" securityToken="Tb0WPistzHYbojGlNCzhuHRl" />
+	</salesforce:sfdc-config>
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="1684b197-45ab-40fc-b227-f4b8a1f7cbca" >
+		<http:listener-connection host="0.0.0.0" port="1234" />
+	</http:listener-config>
+	<os:object-store name="Object_store" doc:name="Object store" doc:id="77638f73-939b-4a76-8f18-2580f210afd1" entryTtl="1" entryTtlUnit="MINUTES" />
+	<flow name="ordersystemapi-main">
+        <http:listener config-ref="ordersystemapi-httpListenerConfig" path="/api/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:router config-ref="ordersystemapi-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:BAD_REQUEST">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Bad request"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">400</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Method not allowed"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">405</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_ACCEPTABLE">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not acceptable"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">406</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Unsupported media type"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">415</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_IMPLEMENTED">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not Implemented"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">501</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="ordersystemapi-console">
+        <http:listener config-ref="ordersystemapi-httpListenerConfig" path="/console/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:console config-ref="ordersystemapi-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="delete:\orderdelete\(sfdcorderid):ordersystemapi-config">
+		<set-variable value="#[attributes.uriParams.sfdcorderid]" doc:name="Set Variable" doc:id="b89651a7-b968-4f3f-b722-59829d104e2e" variableName="sfdcorderid"/>
+		<async doc:name="Async" doc:id="e4ac7de9-676e-4373-baed-8b3ae601182a" >
+			<db:delete doc:name="Delete" doc:id="5c81f007-f231-4b9a-9625-f6bbe7569ed7" config-ref="Database_Config">
+				<db:sql ><![CDATA[delete from orders.orderdetails where salesforceId = :id]]></db:sql>
+				<db:input-parameters ><![CDATA[#[{
+	id:vars.sfdcorderid
+}]]]></db:input-parameters>
+			</db:delete>
+		</async>
+		<salesforce:query doc:name="Query" doc:id="609b6a65-386a-45de-a906-3c7959baecd5" config-ref="Salesforce_Config">
+			<salesforce:salesforce-query ><![CDATA[select id,Name,
+	BillingStreet,
+	BillingCity,
+	BillingState,
+	BillingPostalCode,
+	ShippingStreet,
+	ShippingCity,
+	ShippingState,
+	ShippingPostalCode,
+	Phone,
+	Industry,
+	NumberofLocations__c from Account where id =':id']]></salesforce:salesforce-query>
+			<salesforce:parameters ><![CDATA[#[{
+	id:vars.sfdcorderid
+}]]]></salesforce:parameters>
+		</salesforce:query>
+		<salesforce:delete doc:name="Delete" doc:id="b2ba7886-f81a-4b75-9b58-d0a687c400ab" config-ref="Salesforce_Config">
+			<salesforce:ids ><![CDATA[#[payload.Id]]]></salesforce:ids>
+		</salesforce:delete>
+		<ee:transform doc:name="Transform Message" doc:id="58f4b514-dd4b-4f68-8112-6d9b90522382" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+{
+	(payload.items map(item,index)->{
+		(sfdcorderid:item.payload.id)
+	}) ,
+	message: "Your sfdcorder has been deleted successfully"
+	
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+    </flow>
+    <flow name="get:\orderquery:ordersystemapi-config">
+		<set-variable value="#[attributes.queryParams.sfdcorderid]" doc:name="Set Variable" doc:id="d82ecfaf-6980-4a74-a67b-20850f4435b1" variableName="sfdcorderid"/>
+		<os:retrieve doc:name="Retrieve" doc:id="b3436afa-dace-4b48-9b0d-93df69ddc4a2" key="#[vars.sfdcorderid]" objectStore="Object_store">
+			<os:default-value ><![CDATA[#[""]]]></os:default-value>
+		</os:retrieve>
+		<choice doc:name="Choice" doc:id="6fce8e78-1075-4a70-80ea-516ef592d378" >
+			<when expression="#[isEmpty(payload)]">
+				<salesforce:query doc:name="Query" doc:id="2b2c3d0f-c912-4de9-b795-3210c1d0ee53" config-ref="Salesforce_Config">
+					<salesforce:salesforce-query ><![CDATA[select id,Name from Account where id=':id']]></salesforce:salesforce-query>
+					<salesforce:parameters ><![CDATA[#[{
+	id:vars.sfdcorderid
+}]]]></salesforce:parameters>
+				</salesforce:query>
+				<ee:transform doc:name="Transform Message" doc:id="169189f4-efe6-4859-9668-7e2318d6c922" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<os:store doc:name="Store" doc:id="56c884e7-7e86-40b9-a621-f570c1155227" key="#[vars.sfdcorderid]" objectStore="Object_store"/>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Transform Message" doc:id="9cc2dbbe-a0d9-4443-bc13-15cd2150a41a" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+    </flow>
+    <flow name="post:\ordercreate:application\json:ordersystemapi-config">
+		<choice doc:name="Choice" doc:id="552d9e7f-3cba-48c3-a1be-ef1cf565be34" >
+			<when expression='#[(vars.cid) !=""]'>
+				<async doc:name="Async" doc:id="e6cd524d-6c9e-4971-ae9f-f43ee6a6a650" >
+					<set-variable value="#[correlationId]" doc:name="Set Variable" doc:id="984e5884-0aaa-49ab-8e5b-f63c296b4d83" variableName="correlationid" />
+					<ee:transform doc:name="Transform Message" doc:id="eeaf97fe-cffb-4cee-9d18-8f211ce044b2">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	
+	inputpayload:write(payload,'application/json')
+
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+					<db:insert doc:name="Insert" doc:id="cc0ad5ff-f2c7-40ee-ab9b-58fb20645918" config-ref="Database_Config">
+					<db:sql><![CDATA[INSERT INTO orders.orderdetails (correlationId, ordername, salesforceId, status,requestTime,responseTime)
+VALUES (:correlationId,:ordername,:salesforceId,:status,:requestTime,:responseTime);]]></db:sql>
+					<db:input-parameters><![CDATA[#[{
+	correlationId:vars.correlationid,
+	ordername:payload.inputpayload ,
+	salesforceId:null,
+	status:null,
+	requestTime:now() as  String,
+	responseTime:now() as  String
+	
+}]]]></db:input-parameters>
+				</db:insert>
+				</async>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Transform Message" doc:id="b686137d-1866-47f7-bef1-51b299abe546" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+correlationId:vars.cid
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+		<ee:transform doc:name="Transform Message" doc:id="6ef49a8e-d428-4cfa-aace-5023cabf8c6b" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+[
+  {
+	Name: payload.ordername,
+	BillingStreet: payload.pickupaddress.pickupstreet,
+	BillingCity: payload.pickupaddress.pickupcity,
+	BillingState: payload.pickupaddress.pickupstate,
+	BillingPostalCode: payload.pickupaddress.pickuppincode,
+	ShippingStreet: payload.shippingAddress.shippingstreet,
+	ShippingCity: payload.shippingAddress.shippingcity,
+	ShippingState: payload.shippingAddress.shippingstate,
+	ShippingPostalCode: payload.shippingAddress.shippingpincode,
+	Phone: payload.contactdetails.contactphno,
+	Industry: payload.contactdetails.contactname,
+	NumberofLocations__c: payload.quantity
+}
+]]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<salesforce:create type="Account" doc:name="Create" doc:id="d92356b6-34f5-4ca1-a668-17901cfca7fb" config-ref="Salesforce_Config"/>
+		<ee:transform doc:name="Transform Message" doc:id="d7bd75bd-5803-48cf-b7ed-78b54aeac791" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<ee:transform doc:name="Transform Message" doc:id="9f049a95-bdda-4c09-bd8f-0a4a8f18cd3c" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload.items map(item,index)->{
+	sfdcid:item.payload.id as String
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<async doc:name="Async" doc:id="0a0ceeaf-0458-4094-9d99-c2c17244ae45" >
+			<db:update doc:name="Update" doc:id="4e1fcc27-b946-49ca-865c-c1aee9a8bf8e" config-ref="Database_Config">
+				<db:sql ><![CDATA[UPDATE orders.orderdetails
+SET salesforceId = :salesforceId, status = 'completed',responseTime= :responseTime
+WHERE correlationId = :correlationId;]]></db:sql>
+				<db:input-parameters ><![CDATA[#[{
+	salesforceId:payload[0].sfdcid as String default "",
+	correlationId:vars.correlationid,
+	responseTime:now() as  String
+}]]]></db:input-parameters>
+			</db:update>
+		</async>
+		<error-handler >
+			<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="f1a585f9-12b2-4b0a-83a6-090f090929b5" type="SALESFORCE:INVALID_INPUT">
+				<async doc:name="Async" doc:id="e44cf938-3299-479c-8ae4-0199acee8e8a" >
+					<db:update doc:name="Update" doc:id="9b18bea9-49ca-4bc9-ab38-ae0caf3ec18b" config-ref="Database_Config">
+						<db:sql ><![CDATA[UPDATE orders.orderdetails
+SET salesforceId = :salesforceId, status = 'systemerror',responseTime=:responseTime
+WHERE correlationId = :correlationId;]]></db:sql>
+						<db:input-parameters ><![CDATA[#[{
+	salesforceId:null,
+	correlationId:vars.correlationid,
+	responseTime:now() as String
+}]]]></db:input-parameters>
+					</db:update>
+				</async>
+				<ee:transform doc:name="Transform Message" doc:id="c9bfccbc-1fa0-41e0-96f8-d4163f54d1a7" >
+					<ee:message >
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="errorType" ><![CDATA[%dw 2.0
+output application/java
+---
+error.errorType]]></ee:set-variable>
+						<ee:set-variable variableName="errorMessage" ><![CDATA[%dw 2.0
+output application/java
+---
+error.errorMessage]]></ee:set-variable>
+						<ee:set-variable variableName="statuscode" ><![CDATA[%dw 2.0
+output application/java
+---
+400]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+				<ee:transform doc:name="Transform Message" doc:id="be332e76-6ea5-4fd2-9385-c2200ceccee5" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	statuscode:vars.statuscode,
+	errorMessage:vars.errorMessage,
+	errorType:vars.errorType
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-continue>
+		</error-handler>
+    </flow>
+	<flow name="ordersystemapiFlow" doc:id="09fc31e8-0ee4-411f-92c9-48ac75567ba9" >
+		<http:listener doc:name="Listener" doc:id="4c2bb013-69cf-4f66-9aeb-d0751974198d" config-ref="HTTP_Listener_config" path="/reprocess"/>
+		<db:select doc:name="Select" doc:id="53051c5e-6745-46cf-97a7-a22a27243ab5" config-ref="Database_Config">
+				<db:sql><![CDATA[select ordername,correlationId from orders.orderdetails where status='systemerror';]]></db:sql>
+			</db:select>
+		<foreach doc:name="For Each" doc:id="0d251ee6-cca0-4321-93a4-28b3e465f8f7" >
+			<ee:transform doc:name="Transform Message" doc:id="ef887104-21dc-48e7-8fb2-122f847c1dd0" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload.ordername]]></ee:set-payload>
+				</ee:message>
+				<ee:variables >
+					<ee:set-variable variableName="cid" ><![CDATA[%dw 2.0
+output application/json
+---
+payload.correlationId]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+			<flow-ref doc:name="Flow Reference" doc:id="6ee43626-9319-42e7-96a9-a90dcb21b1fb" name="post:\ordercreate:application\json:ordersystemapi-config"/>
+		</foreach>
+	</flow>
+</mule>
